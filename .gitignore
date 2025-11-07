@@ -1,0 +1,25 @@
+# Build artifacts
+build/
+cmake-build-*/
+Mirror7_artefacts/
+*.vst3
+*.component
+*.app
+
+# CMake intermediates
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+
+# IDE clutter
+.DS_Store
+*.user
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc

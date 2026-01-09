@@ -79,6 +79,13 @@ QUERY_SETS = {
             "alpha wave synchronization auditory",
             "neural oscillation frequency entrainment",
             "dichotic listening hemispheric",
+            # NEW: User requested queries
+            "alpha wave binaural entrainment EEG",
+            "corpus callosum auditory transfer",
+            "dichotic listening hemispheric lateralization",
+            "40 Hz gamma entrainment Alzheimer",
+            "theta wave meditation auditory",
+            "brain hemisphere synchronization sound",
         ],
         "pubmed": [
             "binaural beats brain hemispheric synchronization",
@@ -86,8 +93,13 @@ QUERY_SETS = {
             "interhemispheric coherence EEG",
             "auditory cortex lateralization fMRI",
             "alpha wave entrainment meditation",
+            # NEW: Clinical/medical queries
+            "gamma oscillation 40Hz cognitive",
+            "dichotic listening schizophrenia",
+            "binaural beats anxiety treatment",
+            "auditory steady state response ASSR",
         ],
-        "tags": ["neuroscience", "eeg", "hemispheric", "entrainment", "cortex"],
+        "tags": ["neuroscience", "eeg", "hemispheric", "entrainment", "cortex", "gamma", "alpha"],
     },
     
     "phi": {
@@ -141,6 +153,34 @@ QUERY_SETS = {
             "Russian psychophysiology",
         ],
         "tags": ["russian", "soviet", "bioacoustics", "unconventional"],
+    },
+    
+    "implementation": {
+        "description": "Practical DSP implementation guides and code",
+        "arxiv": [
+            "binaural synthesis algorithm",
+            "granular synthesis real-time",
+            "HRTF convolution efficient",
+            "spatial audio DSP",
+        ],
+        "pubmed": [],  # Not relevant for implementation
+        "stackexchange": [
+            # DSP StackExchange
+            ("dsp", "binaural panning algorithm"),
+            ("dsp", "ITD ILD implementation"),
+            ("dsp", "HRTF convolution"),
+            ("dsp", "granular synthesis"),
+            ("dsp", "pink noise generation"),
+            ("dsp", "golden ratio filter"),
+            # Audio StackExchange
+            ("sound", "binaural audio creation"),
+            ("sound", "spatial audio mixing"),
+            # Signal Processing
+            ("dsp", "delay line interpolation"),
+            ("dsp", "allpass filter reverb"),
+            ("dsp", "comb filter design"),
+        ],
+        "tags": ["implementation", "dsp", "algorithm", "code"],
     },
 }
 
@@ -396,6 +436,100 @@ def ingest_pubmed_query(query: str, tags: List[str], max_papers: int = 10) -> in
     return ingested
 
 # ============================================================================
+# STACKEXCHANGE INGEST
+# ============================================================================
+
+STACKEXCHANGE_API = "https://api.stackexchange.com/2.3"
+
+def fetch_stackexchange(site: str, query: str, max_results: int = 15) -> List[Dict]:
+    """Fetch Q&A from StackExchange API."""
+    params = {
+        'order': 'desc',
+        'sort': 'relevance',
+        'intitle': query,
+        'site': site,
+        'filter': 'withbody',
+        'pagesize': min(max_results, 30),
+    }
+    
+    url = f"{STACKEXCHANGE_API}/search/advanced?{urllib.parse.urlencode(params)}"
+    
+    try:
+        req = urllib.request.Request(url, headers={'Accept-Encoding': 'gzip'})
+        with urllib.request.urlopen(req, timeout=15, context=ssl_context) as resp:
+            import gzip
+            if resp.info().get('Content-Encoding') == 'gzip':
+                data = gzip.decompress(resp.read())
+            else:
+                data = resp.read()
+            result = json.loads(data.decode())
+        
+        questions = []
+        for item in result.get('items', []):
+            questions.append({
+                'id': str(item.get('question_id', '')),
+                'title': item.get('title', ''),
+                'body': item.get('body', '')[:5000],  # Truncate
+                'link': item.get('link', ''),
+                'score': item.get('score', 0),
+                'tags': item.get('tags', []),
+            })
+        return questions
+    except Exception as e:
+        print(f"    SE API error ({site}): {e}")
+        return []
+
+def ingest_stackexchange_query(site: str, query: str, tags: List[str], max_items: int = 10) -> int:
+    """Ingest StackExchange Q&A for a specific query."""
+    print(f"  💬 {site}.SE: '{query}'")
+    
+    source_name = f"{site}.stackexchange"
+    existing_ids = get_existing_ids(source_name)
+    questions = fetch_stackexchange(site, query, max_results=max_items + 5)
+    ingested = 0
+    
+    for q in questions:
+        if ingested >= max_items:
+            break
+        
+        qid = q['id']
+        if not qid or qid in existing_ids:
+            continue
+        
+        title = escape_surreal(q.get('title') or 'Untitled')
+        # Strip HTML tags from body
+        import re
+        body = re.sub(r'<[^>]+>', '', q.get('body', ''))
+        content = escape_surreal(body[:8000])
+        url = q.get('link', '')
+        
+        metadata = {
+            'score': q.get('score', 0),
+            'query': query,
+            'question_tags': q.get('tags', []),
+        }
+        
+        all_tags = list(set(tags + q.get('tags', [])))
+        
+        sql = f'''
+        UPSERT knowledge:{site}_{qid} CONTENT {{
+            source: "{source_name}",
+            source_id: "{qid}",
+            title: "{title}",
+            content: "{content}",
+            url: "{escape_surreal(url)}",
+            metadata: {json.dumps(metadata)},
+            tags: {json.dumps(all_tags)}
+        }};
+        '''
+        result = surreal_query(sql, silent=True)
+        if result:
+            ingested += 1
+            print(f"    ✓ [{q.get('score',0):+d}] {title[:45]}...")
+    
+    return ingested
+
+# ============================================================================
 # MAIN INGESTION LOGIC
 # ============================================================================
 
@@ -431,7 +565,16 @@ def ingest_query_set(mode: str, max_per_query: int = 10):
             count = ingest_pubmed_query(query, tags, max_papers=max_per_query // 2)
             total_ingested += count
     
-    print(f"\n✅ Total ingested for '{mode}': {total_ingested} papers")
+    # StackExchange queries
+    se_queries = query_set.get('stackexchange', [])
+    if se_queries:
+        print(f"\n💬 StackExchange ({len(se_queries)} queries)")
+        for site, query in se_queries:
+            count = ingest_stackexchange_query(site, query, tags, max_items=max_per_query // 2)
+            total_ingested += count
+            time.sleep(1)  # Rate limit for SE API
+    
+    print(f"\n✅ Total ingested for '{mode}': {total_ingested} items")
     return total_ingested
 
 def show_stats():
@@ -473,7 +616,7 @@ def show_stats():
 def main():
     parser = argparse.ArgumentParser(description='Mirror7 Knowledge Ingestion System')
     parser.add_argument('--mode', 
-                        choices=['binaural', 'neuro', 'phi', 'alternative', 'russian', 'all'],
+                        choices=['binaural', 'neuro', 'phi', 'alternative', 'russian', 'implementation', 'all'],
                         default='all', help='Query set to ingest')
     parser.add_argument('--max', type=int, default=15, help='Max papers per query')
     parser.add_argument('--stats', action='store_true', help='Show KB statistics')

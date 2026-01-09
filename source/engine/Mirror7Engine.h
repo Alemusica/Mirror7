@@ -20,8 +20,9 @@
 #include "core/modal_engine.hpp"
 #endif
 
-// Optional: early reflections profile (CEFG). We only declare type; can be disabled.
-#include "aureonoise/spatial/cefg.hpp"
+#include "engine/DialogueSystem.h"
+#include "engine/NoiseController.h"
+#include "engine/Spatializer.h"
 
 class Mirror7Engine
 {
@@ -126,33 +127,7 @@ public:
         double syncSlew = 0.5;     // seconds
     };
 
-    struct DialogueState
-    {
-        double last_sign = 0.0;
-        double last_mag = 0.0;
-        double last_amp = 1.0;
-        double last_dur = 0.0;
-        double last_gap = 0.0;
-        double last_timestamp = 0.0;
-        double coherence = 1.0;
-        double coherence_accum = 0.0;
-        uint64_t coherence_samples = 0;
-        uint64_t utterances = 0;
-        uint64_t handshakes = 0;
-        uint64_t failures = 0;
-        double pan_sum = 0.0;
-        double pan_abs_sum = 0.0;
-        uint64_t pan_samples = 0;
-        int fib_index = 1;
-        int fib_direction = 1;
-        double fib_ratio_target = 1.0;
-        double fib_score = 0.0;
-        std::array<double, 3> fib_gap_queue{};
-        uint32_t fib_gap_queue_size = 0;
-        uint32_t fib_gap_queue_pos = 0;
-    };
-
-    Mirror7Engine() = default;
+    Mirror7Engine();
 
     void prepare (double fs, int maxBlock);
     void reset();
@@ -173,9 +148,6 @@ public:
 
 private:
     // helpers
-    struct CefgTap { double base_delay=0, itd_l=0, itd_r=0, base_gain_l=0, base_gain_r=0, gain_l=0, gain_r=0, lp_a=0, lp_l=0, lp_r=0, mix=0; };
-    struct CefgGrainState { int tap_count=0; std::array<CefgTap, 16> taps{}; };
-
     double fs = 44100.0;
     int osFactor = 1;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
@@ -184,7 +156,7 @@ private:
 
     // core state
     aureo::RNG rng;
-    aureo::AureoNoiseEngine noise;
+    NoiseController noiseController;
     aureo::RingState ring;
     aureo::FieldState field;
     aureo::Weyl w_phi, w_s2, w_pl;
@@ -211,15 +183,10 @@ private:
     double lfo_wow = 0.0, lfo_flt = 0.0;
 
     // dialogue
-    DialogueState dialogue;
+    DialogueSystem dialogue;
 
-    // Φ geometry and distance
-    aureonoise::spatial::phi::Geometry phiGeom{};
-    bool phiGeomValid = false;
-
-    // CEFG profile
-    aureonoise::spatial::cefg::Profile cefgProfile;
-    bool cefgLoaded = false;
+    // Spatial
+    Spatializer spatializer;
 
     // fractional delays for ITD
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> dL { 4096 }, dR { 4096 };
@@ -242,16 +209,21 @@ private:
     int  scheduleGapSamples();
     uint32_t mapLenSamples (double u);
 
-    // dialogue helpers
-    void dialogueReset();
-    struct DialogueResult { double pan=0, amp_scale=1, dur_scale=1, next_coherence=1, base_amp=1, base_dur=0, gap_samples=0, timestamp=0, handshake_score=0, handshake_ratio_target=aureo::kPhi; bool handshake=false; int sign=1; int fib_index=1; int fib_direction=1; };
-    DialogueResult dialogueEvaluate (double timestamp_sec, double pan, double amp, double dur_samples, double gap_samples);
-    void dialogueCommit (const DialogueResult& res, bool accepted);
-
     // φ helpers
-    double applyPhiPan (double pan);
-    void   commitPhiState (double pan, bool ok);
     double applyBurstPosition (double pan, double dur_norm, double gap_norm, double& amp_scale);
+
+    struct BlockDerivedParams
+    {
+        double wowInc = 0.0;
+        double flutterInc = 0.0;
+        double itdScale = 0.0;
+        double minPanNorm = 0.0;
+        double ipdAmt = 0.0;
+        double shadowAmt = 0.0;
+        double phiDistance = 0.0;
+        double phiPitchRad = 0.0;
+    };
+    BlockDerivedParams buildBlockDerivedParams() const;
 
     // modal
     aureonoise::modal::Engine modal;
@@ -274,6 +246,4 @@ private:
 
     void updateTempo (double block_dt);
     void updatePinnaFilters();
-    void maybeLoadCefg();
-    void cefgPrepareGrain (size_t grainIndex, const aureonoise::spatial::phi::Geometry& geom, double sampleRate, double phi_distance, double pitch_rad);
 };

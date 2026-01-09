@@ -57,6 +57,9 @@ set(AUREONOISE_SPATIAL_ASSETS_DIR "${MIRROR7_RESOURCES_DIR}/spatial_assets" CACH
 
 add_library(mirror7_engine STATIC
     ${MIRROR7_SOURCE_DIR}/engine/Mirror7Engine.cpp
+    ${MIRROR7_SOURCE_DIR}/engine/DialogueSystem.cpp
+    ${MIRROR7_SOURCE_DIR}/engine/NoiseController.cpp
+    ${MIRROR7_SOURCE_DIR}/engine/Spatializer.cpp
     ${AUREONOISE_LEGACY_DIR}/beta7_tools/src/spatial/phi_model.cpp
     ${AUREONOISE_LEGACY_DIR}/beta7_tools/src/spatial/cefg.cpp
 )
@@ -158,4 +161,22 @@ if(BUILD_TESTING)
             mirror7_engine
     )
     add_test(NAME mirror7_engine_smoke COMMAND mirror7_engine_smoke)
+
+    add_executable(mirror7_dialogue_test
+        tests/DialogueTest.cpp
+    )
+    target_link_libraries(mirror7_dialogue_test
+        PRIVATE
+            mirror7_engine
+    )
+    add_test(NAME mirror7_dialogue_test COMMAND mirror7_dialogue_test)
+
+    add_executable(mirror7_spatial_test
+        tests/SpatializerTest.cpp
+    )
+    target_link_libraries(mirror7_spatial_test
+        PRIVATE
+            mirror7_engine
+    )
+    add_test(NAME mirror7_spatial_test COMMAND mirror7_spatial_test)
 endif()

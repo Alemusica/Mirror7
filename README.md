@@ -1,60 +1,140 @@
-# Mirror7 Build
+# Mirror7 — Φ-Based Binaural Texture Synth
 
-Standalone JUCE-based build of the Mirror7 texture synth, extracted from the `aureonoise_tilde` mono-repo and reorganised into macro-modules for easier maintenance.
+> **Aureonoise Suite** — Unified repository for the Mirror7 JUCE plugin and aureonoise DSP ecosystem.
 
-## Layout
+Mirror7 is a **granular texture synthesizer** with unique spatial characteristics based on the **Golden Ratio (φ)**. It creates "conversational" stereo textures where grains alternate between hemispheres following Fibonacci proportions.
 
-- `source/engine` &ndash; DSP core (`Mirror7Engine`) plus shared aureonoise dependencies.
-- `source/plugin` &ndash; JUCE audio processor entry point and parameter wiring.
-- `source/gui` &ndash; Editor components and UI bindings.
-- `source/config` &ndash; Parameter IDs and other header-only configuration.
-- `resources/spatial_assets` &ndash; Spatial impulse/geometry data required by the engine.
-- `scripts/post_build_fix_moduleinfo.py` &ndash; Cleans JUCE's generated `moduleinfo.json` files after builds.
+## ✨ Key Features
 
-## Prerequisites
+- **Φ-Based Spatial Dialogue** — Grains alternate L/R with magnitudes following golden ratio proportions
+- **Binaural ITD/ILD** — Physics-based interaural time/level differences with head geometry model
+- **CEFG Early Reflections** — Convolution-free early reflections from spatial profiles
+- **Multiple Noise Engines** — White, Pink, Brown, Aureo (φ-harmonic), Quantum, Velvet
+- **DialogueSystem** — Fibonacci-based coherence tracking for organic grain pacing
+- **Host Sync** — Lock grain rate to DAW tempo with division and slew
+- **Oversampling** — 1×/2×/4× for clean high frequencies
 
-- CMake ≥ 3.22
-- JUCE with CMake exports available (install via package manager or add as submodule and run `cmake --install`)
-- Python ≥ 3.8 (for the post-build manifest fixer)
-- Xcode command-line tools (macOS) or equivalent toolchain on other platforms
+## 📁 Project Structure
 
-The project reuses core DSP headers from the original mono-repo. Set `AUREONOISE_ROOT` to the root of `aureonoise_tilde` if it is not located next to this folder:
-
-```bash
-cmake -B build -S . -DAUREONOISE_ROOT=/path/to/aureonoise_tilde
+```
+Mirror7_build/
+├── source/                    # JUCE Plugin Source
+│   ├── engine/               # DSP Core
+│   │   ├── Mirror7Engine     # Main granular engine
+│   │   ├── DialogueSystem    # Φ-based alternation logic
+│   │   ├── Spatializer       # Binaural + CEFG
+│   │   └── NoiseController   # Noise generators
+│   ├── plugin/               # JUCE AudioProcessor
+│   └── gui/                  # Editor UI
+│
+├── modules/                   # Advanced DSP Modules (from vellutoblu~)
+│   ├── harmony/              # Prime comb, time quantization (TODO: integrate)
+│   ├── control/              # Tempo state machine
+│   ├── core/                 # Modal engine, state definitions
+│   └── dsp/                  # Dialogue, scheduler, spatial utils
+│
+├── legacy/                    # Historical Reference Code
+│   ├── aureo_core_v1/        # Original aureonoise headers (GitHub)
+│   └── max_external/         # Original Max external source
+│
+├── resources/
+│   └── spatial_assets/       # CEFG profiles, room meshes
+│
+├── tests/                     # CTest suite
+│   ├── EngineSmokeTest       # Basic render sanity
+│   ├── DialogueTest          # Alternation heuristics
+│   └── SpatializerTest       # ITD/ILD symmetry
+│
+└── docs/
+    ├── DSP_ANALYSIS.md       # Mathematical breakdown
+    ├── ECOSYSTEM_INVENTORY.md # Full project inventory
+    └── TESTING.md            # Test guide
 ```
 
-## Building
+## 🛠️ Building
 
-Pick a JUCE installation that already exported its CMake files (see `docs/AGENT_README.md` for examples) and point CMake at it:
+### Prerequisites
+
+- CMake ≥ 3.22
+- JUCE 8.x with CMake exports
+- C++20 compiler (Xcode CLT on macOS)
+- Python ≥ 3.8 (for post-build scripts)
+
+### Dependencies
+
+The engine depends on `aureonoise_tilde` headers. Set `AUREONOISE_ROOT`:
 
 ```bash
+# Clone aureonoise_tilde if not already present
+git clone https://github.com/Alemusica/aureonoise_tilde.git ../aureonoise_tilde
+
+# Configure
 cmake -B build -S . \
-  -DJUCE_DIR=/path/to/JUCE/install/lib/cmake/JUCE-8.0.10 \
-  -DAUREONOISE_ROOT=/path/to/aureonoise_tilde   # optional if it already lives next to this folder
+  -DJUCE_DIR=/path/to/JUCE/lib/cmake/JUCE-8.x \
+  -DAUREONOISE_ROOT=../aureonoise_tilde
+
+# Build
 cmake --build build --config Release
 ```
 
-The plugin artefacts are written to `build/Mirror7_artefacts`. After each build the helper script sanitises JUCE's `moduleinfo.json` files.
-
-## Testing
-
-Mirror7 now ships with a JUCE-based smoke test that instantiates `Mirror7Engine` both at 1× and 4× oversampling and asserts the render is finite:
+### Testing
 
 ```bash
-cmake --build build --target mirror7_engine_smoke
+cmake --build build --target mirror7_engine_smoke mirror7_dialogue_test mirror7_spatial_test
 ctest --output-on-failure --test-dir build
 ```
 
-See `docs/TESTING.md` for details and guidance on adding more coverage.
+## 🎛️ Parameters (~70)
 
-## Documentation
+| Group | Key Parameters |
+|-------|----------------|
+| **Timing** | `rate_hz`, `base_ms`, `len_phi`, `hemis_coupling` |
+| **Spatial** | `itd_us`, `ild_db`, `spat_ipd`, `spat_shadow`, `phi_mode` |
+| **Noise** | `noise_mode`, `aureo_mix`, `quantum_detail`, `velvet_amt` |
+| **Dialogue** | `dialogue_on`, `dialogue_strength`, `dialogue_memory` |
+| **Glitch** | `glitch_mix`, `sr_crush`, `bit_crush`, `vhs_wow` |
+| **Modal** | `modal_on`, `modal_preset`, `modal_mix` |
+| **Sync** | `sync_enable`, `sync_division`, `sync_slew` |
 
-- `docs/AGENT_README.md` – quick-start for automation agents and contributors (paths, commands, conventions).
-- `docs/TESTING.md` – how to configure, run, and extend the test suite.
+## 📋 Roadmap
 
-## Next Steps
+### ✅ Completed
+- [x] JUCE plugin with full parameter set
+- [x] Modular engine (Dialogue, Spatializer, NoiseController)
+- [x] Preset save/load (.mir7preset)
+- [x] Test suite
+- [x] Integration of legacy code
 
-- Integrate automated tests/CI via CTest.
-- Package dependencies (e.g., beta7_tools) as submodules for full standalone builds.
-- Add preset management utilities and cross-platform asset handling.
+### 🔴 Phase 1 — Bug Fix
+- [ ] Enable `burst` parameter (currently hardcoded to 0)
+- [ ] Document magic numbers
+
+### 🟠 Phase 2 — Feature Port
+- [ ] Integrate `HarmonySystem` from `modules/harmony/`
+- [ ] Add `prime_comb` (prime-only harmonics)
+- [ ] Add `time_quant` / `time_strict` (Fibonacci grid)
+
+### 🟡 Phase 3 — UX
+- [ ] Collapsible parameter sections
+- [ ] Grain activity visualizer
+- [ ] Factory presets
+
+### 🟢 Phase 4 — CI/CD
+- [ ] GitHub Actions build
+- [ ] Cross-platform testing
+
+## 🔗 Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [aureonoise_tilde](https://github.com/Alemusica/aureonoise_tilde) | Parent monorepo (Max externals) — *archived* |
+| [phiverb](https://github.com/Alemusica/phiverb) | Φ-based algorithmic reverb |
+| aureo-factory | DSP core library (Python/C++) |
+
+## 📜 License
+
+MIT License — © 2025 Alemusica
+
+---
+
+*"Everything is driven by non-periodic relationships: φ, √2, plastic constant, primes."*

@@ -25,6 +25,18 @@ The testing story is intentionally minimal today—a single smoke test that inst
 
 The `mirror7_engine_smoke` test lives in `tests/EngineSmokeTest.cpp`. It exercises `Mirror7Engine::prepare`, `process`, and the oversampling wrapper; failures are printed to `stderr` for easy diagnosis.
 
+## Additional Targeted Tests
+
+- `mirror7_dialogue_test` (`tests/DialogueTest.cpp`) instantiates the standalone `DialogueSystem`, drives a golden-ratio alternation, and asserts that the coherence score stays healthy and the state flips hemispheres as expected.
+- `mirror7_spatial_test` (`tests/SpatializerTest.cpp`) builds a Φ-geometry via `Spatializer`, probes symmetric azimuths, and verifies ITD/ILD are mirrored.
+
+Build and run them the same way:
+
+```bash
+cmake --build build --target mirror7_dialogue_test mirror7_spatial_test
+ctest --output-on-failure --test-dir build
+```
+
 ## Extending the Suite
 
 - **Add new tests** next to the smoke test (use straightforward `main()` programs or plug Catch2/Doctest if the dependency footprint stays light).

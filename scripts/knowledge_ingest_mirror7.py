@@ -146,13 +146,68 @@ QUERY_SETS = {
             "Russian bioacoustics research",
             "Soviet infrasound military",
             "wave genetics DNA",
-            "torsion field physics",  # Will likely return nothing, but worth trying
+            "torsion field physics",
+            "biophoton cell communication",
+            "millimeter wave therapy",
         ],
         "pubmed": [
             "Soviet biofeedback research",
             "Russian psychophysiology",
+            "millimeter wave biological effects",
+            "biophoton emission cells",
         ],
         "tags": ["russian", "soviet", "bioacoustics", "unconventional"],
+    },
+    
+    "corpus_callosum": {
+        "description": "Corpus callosum stimulation and hemispheric integration",
+        "arxiv": [
+            "corpus callosum auditory stimulation",
+            "transcallosal transfer auditory",
+            "interhemispheric communication sound",
+            "whole brain synchronization",
+        ],
+        "pubmed": [
+            "corpus callosum stimulation therapy",
+            "transcallosal auditory processing",
+            "hemispheric integration binaural",
+            "interhemispheric coherence EEG sound",
+            "agenesis corpus callosum auditory",
+        ],
+        "tags": ["corpus-callosum", "hemispheric", "integration", "transcallosal"],
+    },
+    
+    "gamma_therapy": {
+        "description": "40 Hz gamma stimulation and cognitive enhancement",
+        "arxiv": [
+            "40 Hz gamma entrainment cognition",
+            "gamma oscillation stimulation brain",
+            "sensory stimulation gamma Alzheimer",
+        ],
+        "pubmed": [
+            "40 Hz gamma stimulation Alzheimer",
+            "gamma entrainment cognitive enhancement",
+            "auditory steady state response 40Hz",
+            "gamma oscillation memory",
+            "light sound therapy gamma",
+        ],
+        "tags": ["gamma", "40hz", "entrainment", "cognitive", "therapy"],
+    },
+    
+    "heart_brain": {
+        "description": "Heart-brain coherence and HRV biofeedback",
+        "arxiv": [
+            "heart brain coherence",
+            "HRV biofeedback neural",
+        ],
+        "pubmed": [
+            "HeartMath coherence research",
+            "heart rate variability biofeedback",
+            "vagal tone meditation",
+            "resonance frequency breathing",
+            "cardiac coherence training",
+        ],
+        "tags": ["hrv", "heart", "coherence", "biofeedback", "vagal"],
     },
     
     "implementation": {
@@ -616,7 +671,9 @@ def show_stats():
 def main():
     parser = argparse.ArgumentParser(description='Mirror7 Knowledge Ingestion System')
     parser.add_argument('--mode', 
-                        choices=['binaural', 'neuro', 'phi', 'alternative', 'russian', 'implementation', 'all'],
+                        choices=['binaural', 'neuro', 'phi', 'alternative', 'russian', 
+                                 'corpus_callosum', 'gamma_therapy', 'heart_brain',
+                                 'implementation', 'all'],
                         default='all', help='Query set to ingest')
     parser.add_argument('--max', type=int, default=15, help='Max papers per query')
     parser.add_argument('--stats', action='store_true', help='Show KB statistics')

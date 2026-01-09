@@ -367,11 +367,12 @@ def ingest_pubmed_query(query: str, tags: List[str], max_papers: int = 10) -> in
             break
         
         pmid = paper['id']
-        if pmid in existing_ids:
+        if not pmid or pmid in existing_ids:
             continue
         
-        title = escape_surreal(paper['title'] or 'Untitled')
-        content = escape_surreal(paper.get('abstract', '')[:10000])
+        title = escape_surreal(paper.get('title') or 'Untitled')
+        abstract_text = paper.get('abstract') or ''
+        content = escape_surreal(abstract_text[:10000])
         url = paper['link']
         
         metadata = {'query': query}
